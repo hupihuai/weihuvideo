@@ -20,7 +20,7 @@ class MediaCodeUtil {
     private var height: Int = 0
     private var width: Int = 0
     private var isRuning = false
-    private lateinit var configByte: ByteArray
+    private lateinit var spsppsByte: ByteArray
     private lateinit var outputStream: BufferedOutputStream
 
     private var yuv420Queue = ArrayBlockingQueue<ByteArray>(10)
@@ -35,7 +35,7 @@ class MediaCodeUtil {
             val mediaCodecInfo = selectCodec(VCODEC_MIME)
             mediaCodec = MediaCodec.createByCodecName(mediaCodecInfo!!.name)
 
-            var videoFormat = MediaFormat.createVideoFormat(VCODEC_MIME, width, height)
+            var videoFormat = MediaFormat.createVideoFormat(VCODEC_MIME, height, width)
             videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
             videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
             videoFormat.setInteger(
@@ -51,7 +51,7 @@ class MediaCodeUtil {
     }
 
     private fun createFile() {
-        val path = Environment.getExternalStorageDirectory().absolutePath + "/test.yuv"
+        val path = Environment.getExternalStorageDirectory().absolutePath + "/test.h264"
         val file = File(path)
         if (file.exists()) {
             file.delete()
@@ -101,9 +101,11 @@ class MediaCodeUtil {
             while (isRuning) {
                 if (yuv420Queue.size > 0) {
                     input = yuv420Queue.poll()
-                    val yuv420sp = ByteArray(width * height * 3 / 2)
+                    val yuv420sp = ByteArray(getYuvBuffer(width, height))
                     nv212nv12(input, yuv420sp, width, height)
-                    input = yuv420sp
+                    //旋转代码
+                    YUV420spRotate90Clockwise(yuv420sp, input, width, height)
+//                    input = yuv420sp
                 }
                 if (input != null) {
                     try {
@@ -129,18 +131,22 @@ class MediaCodeUtil {
                             var outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 11000)
                             while (outputBufferIndex >= 0) {
                                 val outputBuffer = outputBuffers[outputBufferIndex]
+                                //防止视频数据错乱
+                                outputBuffer.position(bufferInfo.offset)
+                                outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+
                                 val outData = ByteArray(bufferInfo.size)
                                 outputBuffer.get(outData)
                                 when {
                                     bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {//sps  pps
-                                        configByte = outData
+                                        spsppsByte = outData
                                         println("BUFFER_FLAG_CODEC_CONFIG = ")
                                     }
                                     bufferInfo.flags == MediaCodec.BUFFER_FLAG_KEY_FRAME -> {
                                         println("BUFFER_FLAG_KEY_FRAME = ")
-                                        val keyframe = ByteArray(bufferInfo.size + configByte.size)
-                                        System.arraycopy(configByte, 0, keyframe, 0, configByte.size)
-                                        System.arraycopy(outData, 0, keyframe, configByte.size, outData.size)
+                                        val keyframe = ByteArray(bufferInfo.size + spsppsByte.size)
+                                        System.arraycopy(spsppsByte, 0, keyframe, 0, spsppsByte.size)
+                                        System.arraycopy(outData, 0, keyframe, spsppsByte.size, outData.size)
                                         outputStream.write(keyframe, 0, keyframe.size)
                                     }
                                     else -> {//视频数据
@@ -180,8 +186,128 @@ class MediaCodeUtil {
 
     }
 
+    fun getYuvBuffer(width: Int, height: Int): Int {
+        // stride = ALIGN(width, 16)
+        val stride = Math.ceil(width / 16.0).toInt() * 16
+        // y_size = stride * height
+        val y_size = stride * height
+        // c_stride = ALIGN(stride/2, 16)
+        val c_stride = Math.ceil(width / 32.0).toInt() * 16
+        // c_size = c_stride * height/2
+        val c_size = c_stride * height / 2
+        // size = y_size + c_size * 2
+        return y_size + c_size * 2
+    }
+
     fun stop() {
         isRuning = false
+    }
+
+    //顺时针旋转90
+    private fun YUV420spRotate90Clockwise(src: ByteArray, dst: ByteArray, srcWidth: Int, srcHeight: Int) {
+
+        val wh = srcWidth * srcHeight
+        val uvHeight = srcHeight shr 1
+
+        //旋转Y
+        var k = 0
+        for (i in 0 until srcWidth) {
+            var nPos = 0
+            for (j in 0 until srcHeight) {
+                dst[k] = src[nPos + i]
+                k++
+                nPos += srcWidth
+            }
+        }
+
+        var i = 0
+        while (i < srcWidth) {
+            var nPos = wh
+            for (j in 0 until uvHeight) {
+                dst[k] = src[nPos + i]
+                dst[k + 1] = src[nPos + i + 1]
+                k += 2
+                nPos += srcWidth
+            }
+            i += 2
+        }
+
+    }
+
+
+    private fun YUV420spRotate90Anticlockwise(src: ByteArray, dst: ByteArray, width: Int, height: Int) {
+        val wh = width * height
+        val uvHeight = height shr 1
+
+        //旋转Y
+        var k = 0
+        for (i in 0 until width) {
+            var nPos = width - 1
+            for (j in 0 until height) {
+                dst[k] = src[nPos - i]
+                k++
+                nPos += width
+            }
+        }
+
+        var i = 0
+        while (i < width) {
+            var nPos = wh + width - 1
+            for (j in 0 until uvHeight) {
+                dst[k] = src[nPos - i - 1]
+                dst[k + 1] = src[nPos - i]
+                k += 2
+                nPos += width
+            }
+            i += 2
+        }
+    }
+
+    //顺时针旋转270度
+    private fun YUV420spRotate270(des: ByteArray, src: ByteArray, width: Int, height: Int) {
+        var n = 0
+        val uvHeight = height shr 1
+        val wh = width * height
+        //copy y
+        for (j in width - 1 downTo 0) {
+            for (i in 0 until height) {
+                des[n++] = src[width * i + j]
+            }
+        }
+
+        var j = width - 1
+        while (j > 0) {
+            for (i in 0 until uvHeight) {
+                des[n++] = src[wh + width * i + j - 1]
+                des[n++] = src[wh + width * i + j]
+            }
+            j -= 2
+        }
+    }
+
+    //旋转180度（顺时逆时结果是一样的）
+    private fun YUV420spRotate180(src: ByteArray, des: ByteArray, width: Int, height: Int) {
+
+        var n = 0
+        val uh = height shr 1
+        val wh = width * height
+        //copy y
+        for (j in height - 1 downTo 0) {
+            for (i in width - 1 downTo 0) {
+                des[n++] = src[width * j + i]
+            }
+        }
+
+
+        for (j in uh - 1 downTo 0) {
+            var i = width - 1
+            while (i > 0) {
+                des[n] = src[wh + width * j + i - 1]
+                des[n + 1] = src[wh + width * j + i]
+                n += 2
+                i -= 2
+            }
+        }
     }
 
 
