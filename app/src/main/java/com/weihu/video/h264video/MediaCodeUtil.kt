@@ -23,7 +23,7 @@ class MediaCodeUtil {
     private lateinit var configByte: ByteArray
     private lateinit var outputStream: BufferedOutputStream
 
-    private var yuv420Queue = ArrayBlockingQueue<ByteArray>(5)
+    private var yuv420Queue = ArrayBlockingQueue<ByteArray>(10)
 
     fun init(width: Int, height: Int, frameRate: Int) {
 
@@ -84,7 +84,7 @@ class MediaCodeUtil {
 
 
     fun putData(buffer: ByteArray) {
-        if (yuv420Queue.size >= 5) {
+        if (yuv420Queue.size >= 10) {
             yuv420Queue.poll()
         }
         yuv420Queue.add(buffer)
@@ -131,15 +131,21 @@ class MediaCodeUtil {
                                 val outputBuffer = outputBuffers[outputBufferIndex]
                                 val outData = ByteArray(bufferInfo.size)
                                 outputBuffer.get(outData)
-                                if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
-                                    configByte = outData
-                                } else if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_KEY_FRAME) {
-                                    val keyframe = ByteArray(bufferInfo.size + configByte.size)
-                                    System.arraycopy(configByte, 0, keyframe, 0, configByte.size)
-                                    System.arraycopy(outData, 0, keyframe, configByte.size, outData.size)
-                                    outputStream.write(keyframe, 0, keyframe.size)
-                                } else {
-                                    outputStream.write(outData, 0, outData.size)
+                                when {
+                                    bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {//sps  pps
+                                        configByte = outData
+                                        println("BUFFER_FLAG_CODEC_CONFIG = ")
+                                    }
+                                    bufferInfo.flags == MediaCodec.BUFFER_FLAG_KEY_FRAME -> {
+                                        println("BUFFER_FLAG_KEY_FRAME = ")
+                                        val keyframe = ByteArray(bufferInfo.size + configByte.size)
+                                        System.arraycopy(configByte, 0, keyframe, 0, configByte.size)
+                                        System.arraycopy(outData, 0, keyframe, configByte.size, outData.size)
+                                        outputStream.write(keyframe, 0, keyframe.size)
+                                    }
+                                    else -> {//视频数据
+                                        outputStream.write(outData, 0, outData.size)
+                                    }
                                 }
                                 mediaCodec.releaseOutputBuffer(outputBufferIndex, false)
                                 outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)

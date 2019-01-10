@@ -18,8 +18,8 @@ import java.io.IOException
 class H264VideoActivity : AppCompatActivity(), SurfaceHolder.Callback, Camera.PreviewCallback {
     private lateinit var binding: ActivityH264VideoBinding
     private lateinit var camera: Camera
-    private val video_width = 720
-    private val video_height = 1280
+    private val video_width = 1280
+    private val video_height = 720
 
     private var mediaCodeUtil: MediaCodeUtil? = null
 
