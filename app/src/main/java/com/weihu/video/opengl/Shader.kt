@@ -112,7 +112,7 @@ class Shader {
         if (programObject == 0) {
             return
         }
-
+        //把shader添加到program
         GLES30.glAttachShader(programObject, vertexShader)
         GLES30.glAttachShader(programObject, fragmentShader)
 

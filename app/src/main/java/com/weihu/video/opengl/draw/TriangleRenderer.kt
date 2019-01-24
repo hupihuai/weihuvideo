@@ -37,13 +37,31 @@ class TriangleRenderer : GLSurfaceView.Renderer {
         val vertexBuffer = DataUtil.createByteBuffer(vertices)
         //复制数据到opengl
         GLES30.glBufferData(
+            //顶点缓冲对象当前绑定到GL_ARRAY_BUFFER目标上
             GLES30.GL_ARRAY_BUFFER,
+            //指定传输数据的大小(以字节为单位)
             vertices.size * DataUtil.sizeof(GLES30.GL_FLOAT),
+            //发送的实际数据
             vertexBuffer,
+            //GL_STATIC_DRAW ：数据不会或几乎不会改变。
+            //GL_DYNAMIC_DRAW：数据会被改变很多。
+            //GL_STREAM_DRAW ：数据每次绘制时都会改变
             GLES30.GL_STATIC_DRAW
         )
         //设置定点数组指针
-        GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 3 * DataUtil.sizeof(GLES30.GL_FLOAT), 0)
+        GLES30.glVertexAttribPointer(
+            //shader中 layout(location = 0)的值
+            0,
+            //顶点属性的大小。顶点属性是一个vec3，它由3个值组成，所以大小是3
+            3,
+            //数据的类型
+            GLES30.GL_FLOAT,
+            //GL_TRUE，数据被标准化，所有数据都会被映射到0（对于有符号型signed数据是-1）到1之间。我们把它设置为GL_FALSE
+            false,
+            //步长，它告诉我们在连续的顶点属性组之间的间隔 字节单位
+            3 * DataUtil.sizeof(GLES30.GL_FLOAT),
+            //数据偏移量 这里只有顶点 位置数据在数组的开头，所以这里是0
+            0)
         GLES30.glEnableVertexAttribArray(0)
         //vbo end
         //vao end
@@ -55,6 +73,12 @@ class TriangleRenderer : GLSurfaceView.Renderer {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
         esShader.use()
         GLES30.glBindVertexArray(vao[0])
-        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
+        GLES30.glDrawArrays(
+            //图元的类型
+            GLES30.GL_TRIANGLES,
+            //起始索引
+            0,
+            //多少个顶点
+            3)
     }
 }
