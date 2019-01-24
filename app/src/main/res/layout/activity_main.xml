@@ -18,5 +18,12 @@
                 android:text="only h264 video"
         />
 
+        <Button
+                android:id="@+id/openglBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="opengl"
+        />
+
     </LinearLayout>
 </layout>

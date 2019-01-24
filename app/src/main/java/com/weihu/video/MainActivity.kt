@@ -7,6 +7,7 @@ import android.os.Bundle
 import com.weihu.video.R
 import com.weihu.video.databinding.ActivityMainBinding
 import com.weihu.video.h264video.H264VideoActivity
+import com.weihu.video.opengl.OpenglActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -22,6 +23,11 @@ class MainActivity : AppCompatActivity() {
     private fun setViewListener() {
         binding.h264videoBtn.setOnClickListener {
             Intent(this, H264VideoActivity::class.java).apply {
+                startActivity(this)
+            }
+        }
+        binding.openglBtn.setOnClickListener {
+            Intent(this, OpenglActivity::class.java).apply {
                 startActivity(this)
             }
         }

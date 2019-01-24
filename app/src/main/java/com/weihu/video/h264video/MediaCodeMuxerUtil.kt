@@ -1,29 +1,25 @@
 package com.weihu.video.h264video
 
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaCodecList
-import android.media.MediaFormat
+import android.media.*
 import android.os.Environment
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.ArrayBlockingQueue
 
 /**
  * created by hupihuai on 2019/1/9
  */
-class MediaCodeUtil {
+class MediaCodeMuxerUtil {
     private lateinit var mediaCodec: MediaCodec
     private val VCODEC_MIME = "video/avc" // H264的MIME
     private var height: Int = 0
     private var width: Int = 0
     private var isRuning = false
-    private lateinit var spsppsByte: ByteArray
-    private lateinit var outputStream: BufferedOutputStream
 
     private var yuv420Queue = ArrayBlockingQueue<ByteArray>(10)
+
+    private lateinit var muxer: MediaMuxer
+    private var videoTrack = -1
+    private var bufferInfo = MediaCodec.BufferInfo()
 
     fun init(width: Int, height: Int, frameRate: Int) {
 
@@ -43,23 +39,20 @@ class MediaCodeUtil {
             )
             videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
             mediaCodec.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            createMuxer()
             mediaCodec.start()
-            createFile()
         }
 
     }
 
-    private fun createFile() {
-        val path = Environment.getExternalStorageDirectory().absolutePath + "/test.h264"
-        val file = File(path)
-        if (file.exists()) {
-            file.delete()
-        }
+    private fun createMuxer() {
+        val path = Environment.getExternalStorageDirectory().absolutePath + "/test.mp4"
         try {
-            outputStream = BufferedOutputStream(FileOutputStream(file))
-        } catch (e: Exception) {
+            muxer = MediaMuxer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        } catch (e: IOException) {
             e.printStackTrace()
         }
+
 
     }
 
@@ -125,32 +118,26 @@ class MediaCodeUtil {
                             )
                             generateIndex++
 
-                            val bufferInfo = MediaCodec.BufferInfo()
                             //输出buffer出队，返回成功的buffer索引。
                             var outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 11000)
                             while (outputBufferIndex >= 0) {
                                 val outputBuffer = outputBuffers[outputBufferIndex]
-                                //防止视频数据错乱
-                                outputBuffer.position(bufferInfo.offset)
-                                outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
 
-                                val outData = ByteArray(bufferInfo.size)
-                                outputBuffer.get(outData)
-                                when {
-                                    bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {//sps  pps
-                                        spsppsByte = outData
-                                        println("BUFFER_FLAG_CODEC_CONFIG = ")
+                                if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
+                                    bufferInfo.size = 0
+                                    println("BUFFER_FLAG_CODEC_CONFIG = ")
+                                    if (videoTrack < 0) {
+                                        //这里初始化可以直接拿到sps pps
+                                        videoTrack = muxer.addTrack(mediaCodec.outputFormat)
+                                        muxer.start()
                                     }
-                                    bufferInfo.flags == MediaCodec.BUFFER_FLAG_KEY_FRAME -> {
-                                        println("BUFFER_FLAG_KEY_FRAME = ")
-                                        val keyframe = ByteArray(bufferInfo.size + spsppsByte.size)
-                                        System.arraycopy(spsppsByte, 0, keyframe, 0, spsppsByte.size)
-                                        System.arraycopy(outData, 0, keyframe, spsppsByte.size, outData.size)
-                                        outputStream.write(keyframe, 0, keyframe.size)
-                                    }
-                                    else -> {//视频数据
-                                        outputStream.write(outData, 0, outData.size)
-                                    }
+                                }
+
+                                if (bufferInfo.size > 0) {
+                                    //防止视频数据错乱
+                                    outputBuffer.position(bufferInfo.offset)
+                                    outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                                    muxer.writeSampleData(videoTrack, outputBuffer, bufferInfo)
                                 }
                                 mediaCodec.releaseOutputBuffer(outputBufferIndex, false)
                                 outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
@@ -174,8 +161,8 @@ class MediaCodeUtil {
 
             // 关闭数据流
             try {
-                outputStream.flush()
-                outputStream.close()
+                muxer.stop()
+                muxer.release()
             } catch (e: IOException) {
                 e.printStackTrace()
             }

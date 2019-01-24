@@ -21,7 +21,7 @@ class H264VideoActivity : AppCompatActivity(), SurfaceHolder.Callback, Camera.Pr
     private val video_width = 1280
     private val video_height = 720
 
-    private var mediaCodeUtil: MediaCodeUtil? = null
+    private var mediaCodeUtil: MediaCodeMuxerUtil? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,7 +29,7 @@ class H264VideoActivity : AppCompatActivity(), SurfaceHolder.Callback, Camera.Pr
 
         requestPermission()
         binding.surfaceView.holder.addCallback(this)
-        mediaCodeUtil = MediaCodeUtil()
+        mediaCodeUtil = MediaCodeMuxerUtil()
         mediaCodeUtil?.init(video_width, video_height, 30)
         binding.startBtn.setOnClickListener {
             mediaCodeUtil?.startEncoder()
@@ -44,16 +44,13 @@ class H264VideoActivity : AppCompatActivity(), SurfaceHolder.Callback, Camera.Pr
     private fun requestPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
+                this, Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                this, Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) != PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
+                this, Manifest.permission.READ_EXTERNAL_STORAGE
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             Toast.makeText(this, "申请权限", Toast.LENGTH_SHORT).show()
@@ -89,6 +86,7 @@ class H264VideoActivity : AppCompatActivity(), SurfaceHolder.Callback, Camera.Pr
         camera.setDisplayOrientation(90)
         val parameters = camera.parameters
         parameters.previewFormat = ImageFormat.NV21
+        parameters.focusMode = Camera.Parameters.FOCUS_MODE_AUTO
         parameters.setPreviewSize(video_width, video_height)
 
         try {
