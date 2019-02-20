@@ -4,9 +4,7 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import com.weihu.video.R
-import com.weihu.video.opengl.draw.RectangleRender
-import com.weihu.video.opengl.draw.RectangleRender2
-import com.weihu.video.opengl.draw.TriangleRenderer
+import com.weihu.video.opengl.draw.*
 
 class OpenglActivity : AppCompatActivity() {
 
@@ -16,7 +14,7 @@ class OpenglActivity : AppCompatActivity() {
         setContentView(R.layout.activity_opengl)
         glSurfaceView = findViewById(R.id.glSurfaceView)
         glSurfaceView.setEGLContextClientVersion(3)
-        glSurfaceView.setRenderer(RectangleRender2())
+        glSurfaceView.setRenderer(ColorRectangleRender())
         glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
     }
 
