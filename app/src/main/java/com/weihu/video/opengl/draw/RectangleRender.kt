@@ -9,25 +9,30 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 /**
- * created by hupihuai on 2019/1/24
+ * created by hupihuai on 2019/2/20
  */
-class TriangleRenderer : GLSurfaceView.Renderer {
+class RectangleRender : GLSurfaceView.Renderer {
+
     private val vao = IntArray(1)
     private val vbo = IntArray(1)
+    private val ebo = IntArray(1)
     private var esShader = Shader()
 
     private var vertices = floatArrayOf(
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f, 0.5f, 0.0f
+        0.5f, 0.5f, 0.0f,   // 右上角
+        0.5f, -0.5f, 0.0f,  // 右下角
+        -0.5f, -0.5f, 0.0f, // 左下角
+        -0.5f, 0.5f, 0.0f   // 左上角
     )
 
-    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        GLES30.glViewport(0, 0, width, height)
-    }
+    private var indices = shortArrayOf(
+        0, 1, 3, // 第一个三角形
+        1, 2, 3  // 第二个三角形
+    )
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES30.glClearColor(0.2f, 0.3f, 0.3f, 1.0f)
+
         //vao
         GLES30.glGenVertexArrays(1, vao, 0)
         GLES30.glBindVertexArray(vao[0])
@@ -61,24 +66,55 @@ class TriangleRenderer : GLSurfaceView.Renderer {
             //步长，它告诉我们在连续的顶点属性组之间的间隔 字节单位
             3 * DataUtil.sizeof(GLES30.GL_FLOAT),
             //数据偏移量 这里只有顶点 位置数据在数组的开头，所以这里是0
-            0)
+            0
+        )
         GLES30.glEnableVertexAttribArray(0)
         //vbo end
+
+        //ebo start
+        GLES30.glGenBuffers(1, ebo, 0)
+        GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, ebo[0])
+        val indexBuffer = DataUtil.createByteBuffer(indices)
+        //复制数据到opengl
+        GLES30.glBufferData(
+            //顶点缓冲对象当前绑定到GL_ELEMENT_ARRAY_BUFFER目标上
+            GLES30.GL_ELEMENT_ARRAY_BUFFER,
+            //指定传输数据的大小(以字节为单位)
+            indices.size * DataUtil.sizeof(GLES30.GL_SHORT),
+            //发送的实际数据
+            indexBuffer,
+            //GL_STATIC_DRAW ：数据不会或几乎不会改变。
+            //GL_DYNAMIC_DRAW：数据会被改变很多。
+            //GL_STREAM_DRAW ：数据每次绘制时都会改变
+            GLES30.GL_STATIC_DRAW
+        )
+        //ebo end
+
         //vao end
+
         //shader
         esShader.loadProgramFromAsset(MyApp.context, "triangle_vert.glsl", "triangle_frag.glsl")
+    }
+
+    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        GLES30.glViewport(0, 0, width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
         esShader.use()
         GLES30.glBindVertexArray(vao[0])
-        GLES30.glDrawArrays(
+
+        GLES30.glDrawElements(
             //图元的类型
             GLES30.GL_TRIANGLES,
-            //起始索引
-            0,
-            //多少个顶点
-            3)
+            //定点个数
+            6,
+            //定点数据类型
+            GLES30.GL_UNSIGNED_SHORT,
+            //顶点偏移量
+            0
+        )
+
     }
 }
