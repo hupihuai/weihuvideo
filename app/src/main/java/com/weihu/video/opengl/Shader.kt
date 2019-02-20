@@ -140,5 +140,9 @@ class Shader {
         GLES30.glUseProgram(programObject)
     }
 
+    fun setInt(name: String, value: Int) {
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(programObject, name), value)
+    }
+
 
 }

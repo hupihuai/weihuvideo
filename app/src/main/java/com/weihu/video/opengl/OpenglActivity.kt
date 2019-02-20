@@ -14,7 +14,7 @@ class OpenglActivity : AppCompatActivity() {
         setContentView(R.layout.activity_opengl)
         glSurfaceView = findViewById(R.id.glSurfaceView)
         glSurfaceView.setEGLContextClientVersion(3)
-        glSurfaceView.setRenderer(ColorRectangleRender())
+        glSurfaceView.setRenderer(MixTextureRender())
         glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
     }
 
